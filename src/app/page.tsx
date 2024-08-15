@@ -1,5 +1,5 @@
-import DoomLikeGame from "./game/page";
+import Game from "../components/Game";
 
 export default function Home() {
-  return <DoomLikeGame />;
+  return <Game />;
 }
