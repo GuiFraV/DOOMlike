@@ -4,8 +4,8 @@ interface EnvironmentProps {
   scene: THREE.Scene;
 }
 
-const createEnvironment = ({ scene }: EnvironmentProps): THREE.Mesh[] => {
-  const walls: THREE.Mesh[] = [];
+const createEnvironment = ({ scene }: EnvironmentProps): THREE.Object3D[] => {
+  const objects: THREE.Object3D[] = [];
 
   // Ajout de lumières
   const ambientLight = new THREE.AmbientLight(0x404040);
@@ -20,11 +20,13 @@ const createEnvironment = ({ scene }: EnvironmentProps): THREE.Mesh[] => {
   const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
   floorMesh.rotation.x = -Math.PI / 2;
   scene.add(floorMesh);
+  objects.push(floorMesh);
 
   // Création du plafond
   const ceilingMesh = floorMesh.clone();
   ceilingMesh.position.y = 3;
   scene.add(ceilingMesh);
+  objects.push(ceilingMesh);
 
   // Fonction pour créer un mur
   const createWall = (
@@ -40,7 +42,7 @@ const createEnvironment = ({ scene }: EnvironmentProps): THREE.Mesh[] => {
     const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
     wallMesh.position.set(x, y, z);
     scene.add(wallMesh);
-    walls.push(wallMesh);
+    objects.push(wallMesh);
   };
 
   // Création des murs
@@ -53,7 +55,7 @@ const createEnvironment = ({ scene }: EnvironmentProps): THREE.Mesh[] => {
   createWall(-5, 1.5, -5, 3, 3, 0.5);
   createWall(5, 1.5, 5, 0.5, 3, 3);
 
-  return walls;
+  return objects;
 };
 
 export default createEnvironment;

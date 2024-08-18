@@ -4,12 +4,14 @@ import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import createEnvironment from "./Environment";
 import Player from "./Player";
+import { updateVisibility } from "../utils/frustumCulling";
+import PerformanceStats from "./PerformanceStats";
 
 const Game: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef(new THREE.Scene());
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const [walls, setWalls] = useState<THREE.Mesh[]>([]);
+  const [objects, setObjects] = useState<THREE.Object3D[]>([]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -28,11 +30,12 @@ const Game: React.FC = () => {
 
     camera.position.set(0, 1.6, 5);
 
-    const environmentWalls = createEnvironment({ scene });
-    setWalls(environmentWalls);
+    const environmentObjects = createEnvironment({ scene });
+    setObjects(environmentObjects);
 
     const animate = () => {
       requestAnimationFrame(animate);
+      updateVisibility(camera, environmentObjects);
       renderer.render(scene, camera);
     };
     animate();
@@ -53,15 +56,18 @@ const Game: React.FC = () => {
   }, []);
 
   return (
-    <div ref={mountRef} style={{ width: "100vw", height: "100vh" }}>
-      {cameraRef.current && (
-        <Player
-          scene={sceneRef.current}
-          camera={cameraRef.current}
-          walls={walls}
-        />
-      )}
-    </div>
+    <>
+      <PerformanceStats />
+      <div ref={mountRef} style={{ width: "100vw", height: "100vh" }}>
+        {cameraRef.current && (
+          <Player
+            scene={sceneRef.current}
+            camera={cameraRef.current}
+            walls={objects.filter((obj) => obj instanceof THREE.Mesh)}
+          />
+        )}
+      </div>
+    </>
   );
 };
 

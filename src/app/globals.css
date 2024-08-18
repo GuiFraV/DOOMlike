@@ -1,0 +1,12 @@
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+#stats {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: auto !important;
+}
