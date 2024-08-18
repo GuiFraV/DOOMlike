@@ -21,14 +21,16 @@ const Game: React.FC = () => {
       75,
       window.innerWidth / window.innerHeight,
       0.1,
-      1000
+      100
     );
     cameraRef.current = camera;
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     mountRef.current.appendChild(renderer.domElement);
 
-    camera.position.set(0, 1.6, 5);
+    // Placer le joueur au début du labyrinthe
+    camera.position.set(5, 1.6, 5);
+    camera.lookAt(10, 1.6, 5);
 
     const environmentObjects = createEnvironment({ scene });
     setObjects(environmentObjects);
