@@ -4,9 +4,10 @@ import * as THREE from "three";
 interface PlayerProps {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
+  walls: THREE.Mesh[];
 }
 
-const Player: React.FC<PlayerProps> = ({ scene, camera }) => {
+const Player: React.FC<PlayerProps> = ({ scene, camera, walls }) => {
   const moveStateRef = useRef({
     forward: false,
     backward: false,
@@ -18,7 +19,6 @@ const Player: React.FC<PlayerProps> = ({ scene, camera }) => {
     if (!scene || !camera) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      console.log("Key down:", event.code); // Debug log
       switch (event.code) {
         case "ArrowUp":
           moveStateRef.current.forward = true;
@@ -33,11 +33,9 @@ const Player: React.FC<PlayerProps> = ({ scene, camera }) => {
           moveStateRef.current.right = true;
           break;
       }
-      console.log("Move state:", moveStateRef.current); // Debug log
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
-      console.log("Key up:", event.code); // Debug log
       switch (event.code) {
         case "ArrowUp":
           moveStateRef.current.forward = false;
@@ -52,43 +50,59 @@ const Player: React.FC<PlayerProps> = ({ scene, camera }) => {
           moveStateRef.current.right = false;
           break;
       }
-      console.log("Move state:", moveStateRef.current); // Debug log
     };
 
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("keyup", onKeyUp);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
 
     const speed = 0.1;
     const rotationSpeed = 0.05;
 
+    const playerRadius = 0.5; // Rayon du joueur pour la collision
+
+    const checkCollision = (newPosition: THREE.Vector3) => {
+      for (const wall of walls) {
+        const wallBox = new THREE.Box3().setFromObject(wall);
+        const playerSphere = new THREE.Sphere(newPosition, playerRadius);
+        if (wallBox.intersectsSphere(playerSphere)) {
+          return true; // Collision détectée
+        }
+      }
+      return false; // Pas de collision
+    };
+
     const animate = () => {
       requestAnimationFrame(animate);
 
+      const newPosition = camera.position.clone();
+
       if (moveStateRef.current.forward) {
         camera.translateZ(-speed);
-        console.log("Moving forward"); // Debug log
+        if (checkCollision(camera.position)) {
+          camera.position.copy(newPosition);
+        }
       }
       if (moveStateRef.current.backward) {
         camera.translateZ(speed);
-        console.log("Moving backward"); // Debug log
+        if (checkCollision(camera.position)) {
+          camera.position.copy(newPosition);
+        }
       }
       if (moveStateRef.current.left) {
         camera.rotateY(rotationSpeed);
-        console.log("Rotating left"); // Debug log
       }
       if (moveStateRef.current.right) {
         camera.rotateY(-rotationSpeed);
-        console.log("Rotating right"); // Debug log
       }
     };
 
     animate();
 
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
     };
-  }, [scene, camera]);
+  }, [scene, camera, walls]);
 
   return null;
 };
