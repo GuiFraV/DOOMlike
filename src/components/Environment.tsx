@@ -63,7 +63,10 @@ const createEnvironment = ({
       WALL_HEIGHT,
       isHorizontal ? DOOR_THICKNESS : DOOR_WIDTH
     );
-    const doorMesh = new THREE.Mesh(doorGeometry, doorMaterial) as DoorObject;
+    const doorMesh = new THREE.Mesh(
+      doorGeometry,
+      doorMaterial
+    ) as unknown as DoorObject;
     doorMesh.position.set(x, WALL_HEIGHT / 2, z);
     doorMesh.isOpen = false;
     doorMesh.pivot = new THREE.Object3D();

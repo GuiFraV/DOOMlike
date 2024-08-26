@@ -22,7 +22,7 @@ const InteractionMessage: React.FC<InteractionMessageProps> = ({ show }) => {
         fontSize: "16px",
       }}
     >
-      Appuyez sur [Espace] pour ouvrir/fermer la porte
+      Appuyez sur [Entrée] pour ouvrir/fermer la porte
     </div>
   );
 };
