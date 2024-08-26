@@ -19,6 +19,7 @@ const Game: React.FC = () => {
   useEffect(() => {
     if (!mountRef.current) return;
 
+    const mountNode = mountRef.current; // Store mountRef.current in a variable
     const scene = sceneRef.current;
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -29,7 +30,7 @@ const Game: React.FC = () => {
     cameraRef.current = camera;
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    mountRef.current.appendChild(renderer.domElement);
+    mountNode.appendChild(renderer.domElement);
 
     // Placer le joueur au début du labyrinthe
     camera.position.set(0, 1.6, 10);
@@ -65,7 +66,7 @@ const Game: React.FC = () => {
       if (animationIdRef.current !== null) {
         cancelAnimationFrame(animationIdRef.current); // Annuler l'animation en cours
       }
-      mountRef.current?.removeChild(renderer.domElement);
+      mountNode.removeChild(renderer.domElement); // Use the stored variable
     };
   }, []);
 

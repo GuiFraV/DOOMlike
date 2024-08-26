@@ -23,25 +23,22 @@ const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
   });
   const animatingDoorsRef = useRef<Set<DoorObject>>(new Set());
   const animationIdRef = useRef<number | null>(null); // Ref pour stocker l'ID de l'animation
+  const mouseStateRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!scene || !camera) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       switch (event.code) {
-        case "ArrowUp":
-        case "KeyW":
+        case "KeyZ":
           moveStateRef.current.forward = true;
           break;
-        case "ArrowDown":
         case "KeyS":
           moveStateRef.current.backward = true;
           break;
-        case "ArrowLeft":
-        case "KeyA":
+        case "KeyQ":
           moveStateRef.current.left = true;
           break;
-        case "ArrowRight":
         case "KeyD":
           moveStateRef.current.right = true;
           break;
@@ -49,23 +46,20 @@ const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
           moveStateRef.current.interact = true;
           break;
       }
+      console.log("KeyDown:", event.code, moveStateRef.current);
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
       switch (event.code) {
-        case "ArrowUp":
-        case "KeyW":
+        case "KeyZ":
           moveStateRef.current.forward = false;
           break;
-        case "ArrowDown":
         case "KeyS":
           moveStateRef.current.backward = false;
           break;
-        case "ArrowLeft":
-        case "KeyA":
+        case "KeyQ":
           moveStateRef.current.left = false;
           break;
-        case "ArrowRight":
         case "KeyD":
           moveStateRef.current.right = false;
           break;
@@ -73,14 +67,22 @@ const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
           moveStateRef.current.interact = false;
           break;
       }
+      console.log("KeyUp:", event.code, moveStateRef.current);
+    };
+
+    const onMouseMove = (event: MouseEvent) => {
+      mouseStateRef.current.x += event.movementX;
+      mouseStateRef.current.y += event.movementY;
+      console.log("MouseMove:", mouseStateRef.current);
     };
 
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("mousemove", onMouseMove);
 
     // Réduire la vitesse de déplacement et de rotation
     const speed = 0.05; // Vitesse de déplacement réduite
-    const rotationSpeed = 0.02; // Vitesse de rotation réduite
+    const rotationSpeed = 0.002; // Vitesse de rotation réduite
     const collisionDistance = 0.5;
     const pushbackDistance = 0.1;
     const interactionDistance = 2;
@@ -128,12 +130,10 @@ const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
       animationIdRef.current = requestAnimationFrame(animate);
 
       // Rotation
-      if (moveStateRef.current.left) {
-        camera.rotateY(rotationSpeed);
-      }
-      if (moveStateRef.current.right) {
-        camera.rotateY(-rotationSpeed);
-      }
+      camera.rotation.y -= mouseStateRef.current.x * rotationSpeed;
+      camera.rotation.x -= mouseStateRef.current.y * rotationSpeed;
+      mouseStateRef.current.x = 0;
+      mouseStateRef.current.y = 0;
 
       // Movement
       direction.set(0, 0, 0);
@@ -142,11 +142,20 @@ const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
       } else if (moveStateRef.current.backward) {
         direction.z = 1;
       }
+      if (moveStateRef.current.left) {
+        direction.x = -1;
+      } else if (moveStateRef.current.right) {
+        direction.x = 1;
+      }
+
+      console.log("Direction before applyQuaternion:", direction);
 
       if (direction.length() > 0) {
         direction.applyQuaternion(camera.quaternion);
         direction.y = 0; // Keep movement in the xz plane
         direction.normalize();
+
+        console.log("Direction after applyQuaternion:", direction);
 
         raycaster.set(camera.position, direction);
         const intersections = raycaster.intersectObjects([
@@ -190,6 +199,7 @@ const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("mousemove", onMouseMove);
       if (animationIdRef.current !== null) {
         cancelAnimationFrame(animationIdRef.current); // Annuler l'animation en cours
       }
