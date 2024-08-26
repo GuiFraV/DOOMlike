@@ -6,12 +6,15 @@ import createEnvironment from "./Environment";
 import Player from "./Player";
 import { updateVisibility } from "../utils/frustumCulling";
 import PerformanceStats from "./PerformanceStats";
+import { DoorObject } from "../types/game";
 
 const Game: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef(new THREE.Scene());
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const [objects, setObjects] = useState<THREE.Object3D[]>([]);
+  const [doors, setDoors] = useState<DoorObject[]>([]);
+  const animationIdRef = useRef<number | null>(null); // Ref pour stocker l'ID de l'animation
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -29,15 +32,21 @@ const Game: React.FC = () => {
     mountRef.current.appendChild(renderer.domElement);
 
     // Placer le joueur au début du labyrinthe
-    camera.position.set(5, 1.6, 5);
-    camera.lookAt(10, 1.6, 5);
+    camera.position.set(0, 1.6, 10);
+    camera.lookAt(0, 1.6, 0);
 
-    const environmentObjects = createEnvironment({ scene });
+    const {
+      objects: environmentObjects,
+      doors: environmentDoors,
+      animate: animateEnvironment,
+    } = createEnvironment({ scene });
     setObjects(environmentObjects);
+    setDoors(environmentDoors);
 
     const animate = () => {
-      requestAnimationFrame(animate);
+      animationIdRef.current = requestAnimationFrame(animate);
       updateVisibility(camera, environmentObjects);
+      animateEnvironment(); // Ajoutez cette ligne pour animer les portes
       renderer.render(scene, camera);
     };
     animate();
@@ -53,6 +62,9 @@ const Game: React.FC = () => {
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      if (animationIdRef.current !== null) {
+        cancelAnimationFrame(animationIdRef.current); // Annuler l'animation en cours
+      }
       mountRef.current?.removeChild(renderer.domElement);
     };
   }, []);
@@ -66,6 +78,7 @@ const Game: React.FC = () => {
             scene={sceneRef.current}
             camera={cameraRef.current}
             walls={objects.filter((obj) => obj instanceof THREE.Mesh)}
+            doors={doors}
           />
         )}
       </div>

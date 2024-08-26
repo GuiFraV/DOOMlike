@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { DoorObject } from "../types/game";
 
 interface EnvironmentProps {
   scene: THREE.Scene;
@@ -7,14 +8,29 @@ interface EnvironmentProps {
 const CELL_SIZE = 5;
 const WALL_HEIGHT = 3;
 const WALL_THICKNESS = 0.5;
+const DOOR_WIDTH = 4;
+const DOOR_THICKNESS = 0.2; // Rendre la porte plus fine
 
-const createEnvironment = ({ scene }: EnvironmentProps): THREE.Object3D[] => {
+// Constantes pour les types de cellules
+const CELL_WALL = 1;
+const CELL_PATH = 0;
+const CELL_DOOR_HORIZONTAL = 2;
+const CELL_DOOR_VERTICAL = 3;
+
+const createEnvironment = ({
+  scene,
+}: EnvironmentProps): {
+  objects: THREE.Object3D[];
+  doors: DoorObject[];
+  animate: () => void;
+} => {
   const objects: THREE.Object3D[] = [];
+  const doors: DoorObject[] = [];
 
   // Matériaux
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
   const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 });
-  const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x4a2a0a });
+  const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
 
   // Lumières
   const ambientLight = new THREE.AmbientLight(0x404040);
@@ -23,80 +39,62 @@ const createEnvironment = ({ scene }: EnvironmentProps): THREE.Object3D[] => {
   directionalLight.position.set(1, 1, 1);
   scene.add(directionalLight);
 
-  // Labyrinthe (1 = mur, 0 = chemin, 2 = porte)
-  const maze = [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1],
-    [1, 0, 1, 1, 2, 0, 1, 0, 1, 1],
-    [1, 0, 0, 0, 1, 0, 2, 0, 0, 1],
-    [1, 1, 1, 0, 1, 1, 1, 1, 0, 1],
-    [1, 0, 2, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-    [1, 1, 1, 1, 1, 1, 2, 1, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  ];
-
   // Création du sol
-  const floorGeometry = new THREE.PlaneGeometry(
-    maze[0].length * CELL_SIZE,
-    maze.length * CELL_SIZE
-  );
+  const floorGeometry = new THREE.PlaneGeometry(20, 20);
   const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
   floorMesh.rotation.x = -Math.PI / 2;
-  floorMesh.position.set(
-    (maze[0].length * CELL_SIZE) / 2 - CELL_SIZE / 2,
-    0,
-    (maze.length * CELL_SIZE) / 2 - CELL_SIZE / 2
-  );
+  floorMesh.position.set(0, 0, 0);
   scene.add(floorMesh);
   objects.push(floorMesh);
 
-  // Création des murs et des portes
-  for (let i = 0; i < maze.length; i++) {
-    for (let j = 0; j < maze[i].length; j++) {
-      if (maze[i][j] === 1) {
-        // Mur
-        const wallGeometry = new THREE.BoxGeometry(
-          CELL_SIZE,
-          WALL_HEIGHT,
-          WALL_THICKNESS
-        );
-        const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
-        wallMesh.position.set(j * CELL_SIZE, WALL_HEIGHT / 2, i * CELL_SIZE);
-        scene.add(wallMesh);
-        objects.push(wallMesh);
+  // Fonction pour créer un mur
+  const createWall = (x: number, z: number, width: number, depth: number) => {
+    const wallGeometry = new THREE.BoxGeometry(width, WALL_HEIGHT, depth);
+    const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
+    wallMesh.position.set(x, WALL_HEIGHT / 2, z);
+    scene.add(wallMesh);
+    objects.push(wallMesh);
+  };
 
-        // Mur perpendiculaire
-        const wallGeometry2 = new THREE.BoxGeometry(
-          WALL_THICKNESS,
-          WALL_HEIGHT,
-          CELL_SIZE
+  // Fonction pour créer une porte
+  const createDoor = (x: number, z: number, isHorizontal: boolean) => {
+    const doorGeometry = new THREE.BoxGeometry(
+      isHorizontal ? DOOR_WIDTH : DOOR_THICKNESS,
+      WALL_HEIGHT,
+      isHorizontal ? DOOR_THICKNESS : DOOR_WIDTH
+    );
+    const doorMesh = new THREE.Mesh(doorGeometry, doorMaterial) as DoorObject;
+    doorMesh.position.set(x, WALL_HEIGHT / 2, z);
+    doorMesh.isOpen = false;
+    doorMesh.pivot = new THREE.Object3D();
+    doorMesh.pivot.add(doorMesh);
+    doorMesh.pivot.position.set(x, WALL_HEIGHT / 2, z);
+    scene.add(doorMesh.pivot);
+    objects.push(doorMesh);
+    doors.push(doorMesh);
+  };
+
+  // Création des murs
+  createWall(0, -5, 10, WALL_THICKNESS); // Mur horizontal
+  createWall(-5, 0, WALL_THICKNESS, 10); // Mur vertical
+
+  // Création d'une porte
+  createDoor(0, 0, true); // Porte horizontale au centre
+
+  const animate = () => {
+    for (const door of doors) {
+      if (door.isOpen) {
+        door.pivot.rotation.y = Math.min(
+          door.pivot.rotation.y + 0.1,
+          Math.PI / 2
         );
-        const wallMesh2 = new THREE.Mesh(wallGeometry2, wallMaterial);
-        wallMesh2.position.set(
-          j * CELL_SIZE,
-          WALL_HEIGHT / 2,
-          i * CELL_SIZE + CELL_SIZE / 2
-        );
-        scene.add(wallMesh2);
-        objects.push(wallMesh2);
-      } else if (maze[i][j] === 2) {
-        // Porte
-        const doorGeometry = new THREE.BoxGeometry(
-          CELL_SIZE,
-          WALL_HEIGHT,
-          WALL_THICKNESS
-        );
-        const doorMesh = new THREE.Mesh(doorGeometry, doorMaterial);
-        doorMesh.position.set(j * CELL_SIZE, WALL_HEIGHT / 2, i * CELL_SIZE);
-        scene.add(doorMesh);
-        objects.push(doorMesh);
+      } else {
+        door.pivot.rotation.y = Math.max(door.pivot.rotation.y - 0.1, 0);
       }
     }
-  }
+  };
 
-  return objects;
+  return { objects, doors, animate };
 };
 
 export default createEnvironment;
