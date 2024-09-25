@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
 import { DoorObject } from "../types/game";
 import InteractionMessage from "./InteractionMessage";
+import TestPointerLock from "./TestPointerLock";
 
 interface PlayerProps {
   scene: THREE.Scene;
@@ -10,7 +12,7 @@ interface PlayerProps {
   doors: DoorObject[];
 }
 
-const DOOR_WIDTH = 4;
+const WALL_HEIGHT = 3;
 
 const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
   const [showInteractionMessage, setShowInteractionMessage] = useState(false);
@@ -22,69 +24,70 @@ const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
     interact: false,
   });
   const animatingDoorsRef = useRef<Set<DoorObject>>(new Set());
-  const animationIdRef = useRef<number | null>(null); // Ref pour stocker l'ID de l'animation
-  const mouseStateRef = useRef({ x: 0, y: 0 });
+  const animationIdRef = useRef<number | null>(null);
+  const controlsRef = useRef<PointerLockControls | null>(null);
 
   useEffect(() => {
     if (!scene || !camera) return;
 
+    // Initialisation de PointerLockControls
+    const controls = new PointerLockControls(camera, document.body);
+    controlsRef.current = controls;
+    scene.add(controls.getObject());
+
+    // Événement pour verrouiller le pointeur lorsque l'utilisateur clique
+    const onClick = () => {
+      controls.lock();
+    };
+
+    document.addEventListener("click", onClick);
+
     const onKeyDown = (event: KeyboardEvent) => {
-      switch (event.code) {
-        case "KeyZ":
+      switch (event.key.toLowerCase()) {
+        case "z":
           moveStateRef.current.forward = true;
           break;
-        case "KeyS":
+        case "s":
           moveStateRef.current.backward = true;
           break;
-        case "KeyQ":
+        case "q":
           moveStateRef.current.left = true;
           break;
-        case "KeyD":
+        case "d":
           moveStateRef.current.right = true;
           break;
-        case "Enter":
+        case "enter":
           moveStateRef.current.interact = true;
           break;
       }
-      console.log("KeyDown:", event.code, moveStateRef.current);
     };
 
     const onKeyUp = (event: KeyboardEvent) => {
-      switch (event.code) {
-        case "KeyZ":
+      switch (event.key.toLowerCase()) {
+        case "z":
           moveStateRef.current.forward = false;
           break;
-        case "KeyS":
+        case "s":
           moveStateRef.current.backward = false;
           break;
-        case "KeyQ":
+        case "q":
           moveStateRef.current.left = false;
           break;
-        case "KeyD":
+        case "d":
           moveStateRef.current.right = false;
           break;
-        case "Enter":
+        case "enter":
           moveStateRef.current.interact = false;
           break;
       }
-      console.log("KeyUp:", event.code, moveStateRef.current);
     };
 
-    const onMouseMove = (event: MouseEvent) => {
-      mouseStateRef.current.x += event.movementX;
-      mouseStateRef.current.y += event.movementY;
-      console.log("MouseMove:", mouseStateRef.current);
-    };
+    // Ajout des écouteurs sur document au lieu de window
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keyup", onKeyUp);
 
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("mousemove", onMouseMove);
-
-    // Réduire la vitesse de déplacement et de rotation
-    const speed = 0.05; // Vitesse de déplacement réduite
-    const rotationSpeed = 0.002; // Vitesse de rotation réduite
+    const speed = 0.1; // Vitesse ajustée pour un mouvement fluide
     const collisionDistance = 0.5;
-    const pushbackDistance = 0.1;
     const interactionDistance = 2;
 
     const raycaster = new THREE.Raycaster();
@@ -93,32 +96,28 @@ const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
     const toggleDoor = (door: DoorObject) => {
       if (animatingDoorsRef.current.has(door)) return;
 
-      const isHorizontal = door.scale.x > door.scale.z;
-      const openPosition = isHorizontal ? DOOR_WIDTH / 2 : DOOR_WIDTH / 2;
-      const closedPosition = 0;
-      const targetPosition = door.isOpen ? closedPosition : openPosition;
-      const duration = 1000; // Animation duration in milliseconds
-      const startPosition = isHorizontal ? door.position.x : door.position.z;
-      const startTime = Date.now();
-
       animatingDoorsRef.current.add(door);
+
+      const isOpening = !door.isOpen;
+      const duration = 1000; // Durée de l'animation en millisecondes
+      const startTime = Date.now();
 
       const animateDoor = () => {
         const elapsedTime = Date.now() - startTime;
         const progress = Math.min(elapsedTime / duration, 1);
-        const newPosition =
-          startPosition + (targetPosition - startPosition) * progress;
 
-        if (isHorizontal) {
-          door.position.setX(newPosition);
+        if (isOpening) {
+          // Ouverture
+          door.pivot.rotation.y = progress * (Math.PI / 2);
         } else {
-          door.position.setZ(newPosition);
+          // Fermeture
+          door.pivot.rotation.y = (1 - progress) * (Math.PI / 2);
         }
 
         if (progress < 1) {
           requestAnimationFrame(animateDoor);
         } else {
-          door.isOpen = !door.isOpen;
+          door.isOpen = isOpening;
           animatingDoorsRef.current.delete(door);
         }
       };
@@ -129,82 +128,83 @@ const Player: React.FC<PlayerProps> = ({ scene, camera, walls, doors }) => {
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
 
-      // Rotation
-      camera.rotation.y -= mouseStateRef.current.x * rotationSpeed;
-      camera.rotation.x -= mouseStateRef.current.y * rotationSpeed;
-      mouseStateRef.current.x = 0;
-      mouseStateRef.current.y = 0;
+      const controls = controlsRef.current;
+      if (!controls) return;
 
-      // Movement
+      // Mouvement
       direction.set(0, 0, 0);
-      if (moveStateRef.current.forward) {
-        direction.z = -1;
-      } else if (moveStateRef.current.backward) {
-        direction.z = 1;
-      }
-      if (moveStateRef.current.left) {
-        direction.x = -1;
-      } else if (moveStateRef.current.right) {
-        direction.x = 1;
-      }
-
-      console.log("Direction before applyQuaternion:", direction);
+      if (moveStateRef.current.forward) direction.z += 1;
+      if (moveStateRef.current.backward) direction.z -= 1;
+      if (moveStateRef.current.left) direction.x -= 1;
+      if (moveStateRef.current.right) direction.x += 1;
 
       if (direction.length() > 0) {
-        direction.applyQuaternion(camera.quaternion);
-        direction.y = 0; // Keep movement in the xz plane
         direction.normalize();
+        const deltaX = direction.x * speed;
+        const deltaZ = direction.z * speed;
 
-        console.log("Direction after applyQuaternion:", direction);
+        // Vérification des collisions avant de déplacer le joueur
+        const nextPosition = controls.getObject().position.clone();
+        nextPosition.x += deltaX;
+        nextPosition.z += deltaZ;
 
-        raycaster.set(camera.position, direction);
-        const intersections = raycaster.intersectObjects([
-          ...walls,
-          ...doors.filter((door) => !door.isOpen),
-        ]);
+        const collision = walls.some((wall) => {
+          const wallBox = new THREE.Box3().setFromObject(wall);
+          const playerBox = new THREE.Box3().setFromCenterAndSize(
+            nextPosition,
+            new THREE.Vector3(1, WALL_HEIGHT, 1) // Taille approximative du joueur
+          );
+          return wallBox.intersectsBox(playerBox);
+        });
 
-        if (
-          intersections.length === 0 ||
-          intersections[0].distance > collisionDistance
-        ) {
-          camera.position.addScaledVector(direction, speed);
-        } else {
-          // Pushback on collision
-          const pushbackDirection = direction.clone().negate();
-          camera.position.addScaledVector(pushbackDirection, pushbackDistance);
+        if (!collision) {
+          controls.moveRight(deltaX);
+          controls.moveForward(deltaZ);
         }
       }
 
-      // Door interaction check
+      // Vérification de l'interaction avec les portes
       raycaster.set(
-        camera.position,
-        camera.getWorldDirection(new THREE.Vector3())
+        controls.getObject().position,
+        controls.getDirection(new THREE.Vector3())
       );
-      const doorIntersections = raycaster.intersectObjects(doors);
+
+      // Intersection avec les portes (en vérifiant les enfants du pivot)
+      const doorIntersections = raycaster.intersectObjects(
+        doors.map((door) => door.pivot.children[0]),
+        false
+      );
+
       setShowInteractionMessage(
         doorIntersections.length > 0 &&
           doorIntersections[0].distance < interactionDistance
       );
 
-      // Door interaction
+      // Interaction avec les portes
       if (moveStateRef.current.interact && showInteractionMessage) {
-        const door = doorIntersections[0].object as DoorObject;
-        toggleDoor(door);
-        moveStateRef.current.interact = false; // Reset interaction state
+        const doorMesh = doorIntersections[0].object as THREE.Mesh;
+        const door = doors.find((d) => d.pivot.children[0] === doorMesh);
+        if (door) {
+          toggleDoor(door);
+        }
+        moveStateRef.current.interact = false; // Réinitialiser l'état d'interaction
       }
     };
 
     animate();
-
+    <TestPointerLock />;
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("mousemove", onMouseMove);
+      // Retirez les écouteurs sur document
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keyup", onKeyUp);
+      document.removeEventListener("click", onClick);
       if (animationIdRef.current !== null) {
-        cancelAnimationFrame(animationIdRef.current); // Annuler l'animation en cours
+        cancelAnimationFrame(animationIdRef.current);
       }
+      controls.disconnect();
+      scene.remove(controls.getObject());
     };
-  }, [scene, camera, walls, doors, showInteractionMessage]);
+  }, [scene, camera, walls, doors]);
 
   return <InteractionMessage show={showInteractionMessage} />;
 };

@@ -15,12 +15,12 @@ export default function Home() {
         }}
       >
         Utilisez les flèches pour vous déplacer :<br />
-        ↑ : Avancer
+        Z : Avancer
         <br />
-        ↓ : Reculer
+        S : Reculer
         <br />
-        ← : Tourner à gauche
-        <br />→ : Tourner à droite
+        Q : Tourner à gauche
+        <br />D : Tourner à droite
       </div>
       <Game />
     </div>

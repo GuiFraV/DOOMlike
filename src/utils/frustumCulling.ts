@@ -4,6 +4,13 @@ export function updateVisibility(
   camera: THREE.Camera,
   objects: THREE.Object3D[]
 ) {
+  if (!objects || !Array.isArray(objects)) {
+    console.error(
+      "La variable 'objects' est undefined ou n'est pas un tableau."
+    );
+    return;
+  }
+
   const frustum = new THREE.Frustum();
   const matrix = new THREE.Matrix4().multiplyMatrices(
     camera.projectionMatrix,

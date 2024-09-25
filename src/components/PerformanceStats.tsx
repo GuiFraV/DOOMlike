@@ -30,6 +30,8 @@ const PerformanceStats: React.FC = () => {
       msRef.current?.begin();
       mbRef.current?.begin();
 
+      // Ici, vous pouvez ajouter votre logique de rendu ou d'animation
+
       fpsRef.current?.end();
       msRef.current?.end();
       mbRef.current?.end();
@@ -39,9 +41,29 @@ const PerformanceStats: React.FC = () => {
     requestAnimationFrame(animate);
 
     return () => {
-      document.body.removeChild(fpsRef.current!.dom);
-      document.body.removeChild(msRef.current!.dom);
-      document.body.removeChild(mbRef.current!.dom);
+      console.log("Démontage du composant PerformanceStats");
+
+      if (
+        fpsRef.current &&
+        fpsRef.current.dom &&
+        fpsRef.current.dom.parentNode === document.body
+      ) {
+        document.body.removeChild(fpsRef.current.dom);
+      }
+      if (
+        msRef.current &&
+        msRef.current.dom &&
+        msRef.current.dom.parentNode === document.body
+      ) {
+        document.body.removeChild(msRef.current.dom);
+      }
+      if (
+        mbRef.current &&
+        mbRef.current.dom &&
+        mbRef.current.dom.parentNode === document.body
+      ) {
+        document.body.removeChild(mbRef.current.dom);
+      }
     };
   }, []);
 

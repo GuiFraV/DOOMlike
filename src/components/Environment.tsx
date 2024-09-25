@@ -9,9 +9,9 @@ const CELL_SIZE = 5;
 const WALL_HEIGHT = 3;
 const WALL_THICKNESS = 0.5;
 const DOOR_WIDTH = 4;
-const DOOR_THICKNESS = 0.2; // Rendre la porte plus fine
+const DOOR_THICKNESS = 0.2;
 
-// Constantes pour les types de cellules
+// Types de cellules
 const CELL_WALL = 1;
 const CELL_PATH = 0;
 const CELL_DOOR_HORIZONTAL = 2;
@@ -20,11 +20,11 @@ const CELL_DOOR_VERTICAL = 3;
 const createEnvironment = ({
   scene,
 }: EnvironmentProps): {
-  objects: THREE.Object3D[];
+  walls: THREE.Object3D[];
   doors: DoorObject[];
   animate: () => void;
 } => {
-  const objects: THREE.Object3D[] = [];
+  const walls: THREE.Object3D[] = [];
   const doors: DoorObject[] = [];
 
   // Matériaux
@@ -40,64 +40,85 @@ const createEnvironment = ({
   scene.add(directionalLight);
 
   // Création du sol
-  const floorGeometry = new THREE.PlaneGeometry(20, 20);
+  const floorGeometry = new THREE.PlaneGeometry(50, 50);
   const floorMesh = new THREE.Mesh(floorGeometry, floorMaterial);
   floorMesh.rotation.x = -Math.PI / 2;
   floorMesh.position.set(0, 0, 0);
   scene.add(floorMesh);
-  objects.push(floorMesh);
 
-  // Fonction pour créer un mur
-  const createWall = (x: number, z: number, width: number, depth: number) => {
-    const wallGeometry = new THREE.BoxGeometry(width, WALL_HEIGHT, depth);
-    const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
-    wallMesh.position.set(x, WALL_HEIGHT / 2, z);
-    scene.add(wallMesh);
-    objects.push(wallMesh);
-  };
+  // Grille de l'environnement (labyrinthe simple)
+  const grid = [
+    [1, 1, 1, 1, 1],
+    [1, 0, 2, 0, 1],
+    [1, 0, 0, 3, 1],
+    [1, 0, 1, 0, 1],
+    [1, 1, 1, 1, 1],
+  ];
 
-  // Fonction pour créer une porte
-  const createDoor = (x: number, z: number, isHorizontal: boolean) => {
-    const doorGeometry = new THREE.BoxGeometry(
-      isHorizontal ? DOOR_WIDTH : DOOR_THICKNESS,
-      WALL_HEIGHT,
-      isHorizontal ? DOOR_THICKNESS : DOOR_WIDTH
-    );
-    const doorMesh = new THREE.Mesh(
-      doorGeometry,
-      doorMaterial
-    ) as unknown as DoorObject;
-    doorMesh.position.set(x, WALL_HEIGHT / 2, z);
-    doorMesh.isOpen = false;
-    doorMesh.pivot = new THREE.Object3D();
-    doorMesh.pivot.add(doorMesh);
-    doorMesh.pivot.position.set(x, WALL_HEIGHT / 2, z);
-    scene.add(doorMesh.pivot);
-    objects.push(doorMesh);
-    doors.push(doorMesh);
-  };
+  const rows = grid.length;
+  const cols = grid[0].length;
 
-  // Création des murs
-  createWall(0, -5, 10, WALL_THICKNESS); // Mur horizontal
-  createWall(-5, 0, WALL_THICKNESS, 10); // Mur vertical
+  // Parcours de la grille pour créer les murs et les portes
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const cell = grid[i][j];
+      const x = (j - cols / 2) * CELL_SIZE;
+      const z = (i - rows / 2) * CELL_SIZE;
 
-  // Création d'une porte
-  createDoor(0, 0, true); // Porte horizontale au centre
-
-  const animate = () => {
-    for (const door of doors) {
-      if (door.isOpen) {
-        door.pivot.rotation.y = Math.min(
-          door.pivot.rotation.y + 0.1,
-          Math.PI / 2
+      if (cell === CELL_WALL) {
+        // Création du mur
+        const wallGeometry = new THREE.BoxGeometry(
+          CELL_SIZE,
+          WALL_HEIGHT,
+          CELL_SIZE
         );
-      } else {
-        door.pivot.rotation.y = Math.max(door.pivot.rotation.y - 0.1, 0);
+        const wallMesh = new THREE.Mesh(wallGeometry, wallMaterial);
+        wallMesh.position.set(x, WALL_HEIGHT / 2, z);
+        scene.add(wallMesh);
+        walls.push(wallMesh);
+      } else if (cell === CELL_DOOR_HORIZONTAL || cell === CELL_DOOR_VERTICAL) {
+        // Création de la porte
+        const isHorizontal = cell === CELL_DOOR_HORIZONTAL;
+        const doorGeometry = new THREE.BoxGeometry(
+          isHorizontal ? DOOR_WIDTH : DOOR_THICKNESS,
+          WALL_HEIGHT,
+          isHorizontal ? DOOR_THICKNESS : DOOR_WIDTH
+        );
+
+        // Création de la porte avec les propriétés supplémentaires
+        const doorMesh = Object.assign(
+          new THREE.Mesh(doorGeometry, doorMaterial),
+          {
+            isOpen: false,
+            pivot: new THREE.Object3D(),
+          }
+        ) as DoorObject;
+
+        // Positionnement du pivot et de la porte
+        doorMesh.pivot.position.set(x, WALL_HEIGHT / 2, z);
+        doorMesh.position.set(0, 0, 0); // Position relative au pivot
+        doorMesh.pivot.add(doorMesh);
+        scene.add(doorMesh.pivot);
+
+        doors.push(doorMesh);
       }
     }
+  }
+
+  // Ajout de la fonction animate pour animer les portes
+  const animate = () => {
+    doors.forEach((door) => {
+      // Animation de l'ouverture/fermeture des portes
+      const targetRotation = door.isOpen ? Math.PI / 2 : 0;
+      door.pivot.rotation.y = THREE.MathUtils.lerp(
+        door.pivot.rotation.y,
+        targetRotation,
+        0.1 // Vous pouvez ajuster ce facteur pour contrôler la vitesse
+      );
+    });
   };
 
-  return { objects, doors, animate };
+  return { walls, doors, animate };
 };
 
 export default createEnvironment;

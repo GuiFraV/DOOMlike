@@ -7,6 +7,7 @@ import Player from "./Player";
 import { updateVisibility } from "../utils/frustumCulling";
 import PerformanceStats from "./PerformanceStats";
 import { DoorObject } from "../types/game";
+import TestPointerLock from "./TestPointerLock";
 
 const Game: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -14,12 +15,12 @@ const Game: React.FC = () => {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const [objects, setObjects] = useState<THREE.Object3D[]>([]);
   const [doors, setDoors] = useState<DoorObject[]>([]);
-  const animationIdRef = useRef<number | null>(null); // Ref pour stocker l'ID de l'animation
+  const animationIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!mountRef.current) return;
 
-    const mountNode = mountRef.current; // Store mountRef.current in a variable
+    const mountNode = mountRef.current;
     const scene = sceneRef.current;
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -37,17 +38,30 @@ const Game: React.FC = () => {
     camera.lookAt(0, 1.6, 0);
 
     const {
-      objects: environmentObjects,
+      walls: environmentWalls,
       doors: environmentDoors,
       animate: animateEnvironment,
     } = createEnvironment({ scene });
-    setObjects(environmentObjects);
+    setObjects(environmentWalls);
     setDoors(environmentDoors);
+
+    // Inclure les murs et les pivots des portes pour la visibilité
+    const environmentObjects = [
+      ...environmentWalls,
+      ...environmentDoors.map((door) => door.pivot),
+    ];
+
+    // Vérifier ce qui est retourné par createEnvironment
+    console.log("Valeurs retournées par createEnvironment :", {
+      environmentWalls,
+      environmentDoors,
+      animateEnvironment,
+    });
 
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
       updateVisibility(camera, environmentObjects);
-      animateEnvironment(); // Ajoutez cette ligne pour animer les portes
+      animateEnvironment(); // Animer les portes
       renderer.render(scene, camera);
     };
     animate();
@@ -64,21 +78,22 @@ const Game: React.FC = () => {
     return () => {
       window.removeEventListener("resize", handleResize);
       if (animationIdRef.current !== null) {
-        cancelAnimationFrame(animationIdRef.current); // Annuler l'animation en cours
+        cancelAnimationFrame(animationIdRef.current);
       }
-      mountNode.removeChild(renderer.domElement); // Use the stored variable
+      mountNode.removeChild(renderer.domElement);
     };
   }, []);
 
   return (
     <>
+      <TestPointerLock />
       <PerformanceStats />
       <div ref={mountRef} style={{ width: "100vw", height: "100vh" }}>
         {cameraRef.current && (
           <Player
             scene={sceneRef.current}
             camera={cameraRef.current}
-            walls={objects.filter((obj) => obj instanceof THREE.Mesh)}
+            walls={objects}
             doors={doors}
           />
         )}
